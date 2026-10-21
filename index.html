@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-   <html lang="fr" data-theme="dark">
+<html lang="fr" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -176,6 +176,13 @@
     form { padding: 32px 30px; }
     .cta .btn { width: auto; }
   }
+  #cookieBanner { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); max-width: 560px; margin: 0 auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; box-shadow: 0 8px 30px rgba(0,0,0,.35); z-index: 50; display: grid; gap: 12px; font-size: 15px; }
+  #cookieBanner[hidden] { display: none; }
+  #cookieBanner p { margin: 0; }
+  #cookieBanner .row { display: flex; gap: 10px; justify-content: flex-end; }
+  #cookieBanner .btn { padding: 11px 20px; min-height: 44px; font-size: 16px; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1.5px solid var(--line); }
+  .btn.ghost:hover { background: var(--bg); }
 </style>
 </head>
 <body>
@@ -274,15 +281,118 @@
 
 </main>
 
+<div id="cookieBanner" role="dialog" aria-label="Mesure d’audience" hidden>
+  <p>Nous utilisons le pixel Meta pour mesurer l’efficacité de nos publicités. Tu peux refuser : le site fonctionne exactement pareil.</p>
+  <div class="row">
+    <button type="button" class="btn ghost" id="consentNo">Refuser</button>
+    <button type="button" class="btn" id="consentYes">Accepter</button>
+  </div>
+</div>
+
 <script>
   /* ====== À REMPLIR ====== */
   var CONFIG = {
-    WEBHOOK_URL:  "",   // URL du webhook n8n (ex : https://ton-n8n.com/webhook/lead)
+    WEBHOOK_URL:  "",   // webhook n8n n°1 : nouveau lead (ex : https://ton-n8n.com/webhook/olya-lead)
+    BOOKING_WEBHOOK_URL: "",   // webhook n8n n°2 : RDV réservé (ex : https://ton-n8n.com/webhook/olya-booking)
+    PIXEL_ID:     "",   // ID du pixel Meta (Gestionnaire d’événements, ex : 123456789012345)
     VIDEO_URL:    "olya.mp4",   // vidéo OLYA (même dossier que cette page)
     POSTER_URL:   "poster.jpg", // image affichée avant la lecture
     CALENDAR_URL: "https://calendly.com/olivierokouta/30min"    // lien Calendly
   };
   /* ======================= */
+
+  /* ---------- Pixel Meta, notifications n8n, Calendly ---------- */
+  var currentLead = null;
+  var bookingSent = false;
+
+  function getCookie(n) {
+    var m = document.cookie.match(new RegExp("(?:^|; )" + n + "=([^;]*)"));
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+  function fbcFromUrl() {
+    var m = location.search.match(/[?&]fbclid=([^&]+)/);
+    return m ? "fb.1." + Date.now() + "." + m[1] : "";
+  }
+  function loadPixel() {
+    if (!CONFIG.PIXEL_ID || window.fbq) return;
+    !function (f, b, e, v, n, t, s) {
+      if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
+      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = "2.0"; n.queue = [];
+      t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+    }(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+    window.fbq("init", CONFIG.PIXEL_ID);
+    window.fbq("track", "PageView");
+  }
+  function track(name, data, eventId) {
+    if (!window.fbq) return;
+    if (eventId) window.fbq("track", name, data || {}, { eventID: eventId });
+    else window.fbq("track", name, data || {});
+  }
+  function notify(payload, wait, url) {
+    url = url || CONFIG.WEBHOOK_URL;
+    if (!url) return Promise.resolve();
+    var p = fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch(function () { /* on n’empêche jamais le prospect d’avancer */ });
+    if (!wait) return p;
+    return Promise.race([p, new Promise(function (r) { setTimeout(r, 2500); })]);
+  }
+  function loadCalendly(box, lead) {
+    box.style.display = "block";
+    box.style.placeItems = "initial";
+    var holder = document.createElement("div");
+    holder.id = "calendly-embed";
+    holder.style.cssText = "min-width:320px;width:100%;height:700px;";
+    box.appendChild(holder);
+    var css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "https://assets.calendly.com/assets/external/widget.css";
+    document.head.appendChild(css);
+    var sc = document.createElement("script");
+    sc.src = "https://assets.calendly.com/assets/external/widget.js";
+    sc.async = true;
+    sc.onload = function () {
+      var sep = CONFIG.CALENDAR_URL.indexOf("?") === -1 ? "?" : "&";
+      window.Calendly.initInlineWidget({
+        url: CONFIG.CALENDAR_URL + sep + "hide_gdpr_banner=1&background_color=1A2822&text_color=F3EBDD&primary_color=1FA593",
+        parentElement: holder,
+        prefill: { name: lead.fullname, email: lead.email, customAnswers: { a1: lead.phone } }
+      });
+    };
+    document.body.appendChild(sc);
+  }
+  window.addEventListener("message", function (e) {
+    if (e.origin !== "https://calendly.com") return;
+    if (!e.data || e.data.event !== "calendly.event_scheduled" || bookingSent) return;
+    bookingSent = true;
+    var id = "schedule_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    track("Schedule", { content_name: "Démo OLYA" }, id);
+    var lead = currentLead || {};
+    var uri = e.data.payload && e.data.payload.event ? e.data.payload.event.uri : "";
+    notify({
+      type: "booking", event_id: id, fullname: lead.fullname, email: lead.email, phone: lead.phone, city: lead.city,
+      source: lead.source, event_uri: uri, page_url: location.href, fbp: getCookie("_fbp"), fbc: getCookie("_fbc") || fbcFromUrl(),
+      submitted_at: new Date().toISOString()
+    }, false, CONFIG.BOOKING_WEBHOOK_URL || CONFIG.WEBHOOK_URL);
+  });
+
+  var consent = null;
+  try { consent = localStorage.getItem("olya_consent"); } catch (err) {}
+  if (CONFIG.PIXEL_ID) {
+    if (consent === "yes") loadPixel();
+    else if (consent === null) document.getElementById("cookieBanner").hidden = false;
+  }
+  document.getElementById("consentYes").addEventListener("click", function () {
+    try { localStorage.setItem("olya_consent", "yes"); } catch (err) {}
+    document.getElementById("cookieBanner").hidden = true; loadPixel();
+  });
+  document.getElementById("consentNo").addEventListener("click", function () {
+    try { localStorage.setItem("olya_consent", "no"); } catch (err) {}
+    document.getElementById("cookieBanner").hidden = true;
+  });
 
   var form = document.getElementById("leadForm");
   var step1 = document.getElementById("step1");
@@ -345,11 +455,7 @@
 
     var cbox = document.getElementById("calendarBox");
     if (CONFIG.CALENDAR_URL) {
-      var f = document.createElement("iframe");
-      f.src = buildEmbedUrl(CONFIG.CALENDAR_URL, lead);
-      f.title = "Calendrier de réservation";
-      f.loading = "lazy";
-      cbox.appendChild(f);
+      loadCalendly(cbox, lead);
     } else {
       cbox.innerHTML = '<div class="ph">Ton calendrier Cal.com ou Calendly s’affichera ici, déjà prérempli avec le nom, l’e-mail et le téléphone.</div>';
     }
@@ -382,15 +488,14 @@
     btn.disabled = true;
     btn.textContent = "Déblocage en cours…";
 
-    var send = Promise.resolve();
-    if (CONFIG.WEBHOOK_URL) {
-      send = fetch(CONFIG.WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(lead)
-      }).catch(function () { /* on n’empêche jamais le prospect d’avancer */ });
-    }
-    send.then(function () { showStep2(lead); });
+    lead.type = "lead";
+    lead.event_id = "lead_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    lead.page_url = location.href;
+    lead.fbp = getCookie("_fbp");
+    lead.fbc = getCookie("_fbc") || fbcFromUrl();
+    currentLead = lead;
+    track("Lead", { content_name: "Accès présentation OLYA", content_category: "Agent immobilier" }, lead.event_id);
+    notify(lead, true).then(function () { showStep2(lead); });
   });
 </script>
 </body>
