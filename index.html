@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OLYA – Assistant WhatsApp pour agents immobiliers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F1E5;
+    --surface: #FFFDF8;
+    --text: #1F2A24;
+    --muted: #5B665F;
+    --line: #E2D9C6;
+    --accent: #0F7F72;
+    --accent-hover: #0B6A5F;
+    --on-accent: #FFFFFF;
+    --bubble: #DCF8C6;
+    --error: #B3261E;
+    --video-bg: #1F2A24;
+    --video-fg: #F7F1E5;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121C17;
+      --surface: #1A2822;
+      --text: #F3EBDD;
+      --muted: #A9B3AB;
+      --line: #2C3D35;
+      --accent: #1FA593;
+      --accent-hover: #28B8A5;
+      --on-accent: #0C1511;
+      --bubble: #1F4D3A;
+      --error: #FFB4AB;
+      --video-bg: #0C1511;
+      --video-fg: #F3EBDD;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121C17;
+    --surface: #1A2822;
+    --text: #F3EBDD;
+    --muted: #A9B3AB;
+    --line: #2C3D35;
+    --accent: #1FA593;
+    --accent-hover: #28B8A5;
+    --on-accent: #0C1511;
+    --bubble: #1F4D3A;
+    --error: #FFB4AB;
+    --video-bg: #0C1511;
+    --video-fg: #F3EBDD;
+    color-scheme: dark;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); scroll-behavior: smooth; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 56px 22px 72px; }
+  h1, h2 {
+    font-family: "Fraunces", Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+  h1 { font-size: clamp(32px, 7vw, 46px); }
+  h2 { font-size: clamp(24px, 5vw, 30px); }
+  .lead { color: var(--muted); margin: 16px 0 0; max-width: 52ch; }
+  .step[hidden] { display: none; }
+
+  /* Étape 1 */
+  form {
+    margin-top: 32px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 26px 22px;
+    display: grid;
+    gap: 18px;
+  }
+  .field { display: grid; gap: 6px; }
+  label, .label { font-weight: 500; font-size: 15px; }
+  input[type="text"], input[type="email"], input[type="tel"], select {
+    width: 100%;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    padding: 13px 14px;
+    min-height: 48px;
+  }
+  input::placeholder { color: var(--muted); opacity: .7; }
+  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+  input[aria-invalid="true"] { border-color: var(--error); }
+  .phone { display: grid; grid-template-columns: 112px 1fr; gap: 8px; }
+  .error { color: var(--error); font-size: 14px; min-height: 0; margin: 0; }
+  .error:empty { display: none; }
+  .consent { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; font-size: 14.5px; color: var(--muted); }
+  .consent input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    font: inherit; font-weight: 600; font-size: 17px;
+    background: var(--accent); color: var(--on-accent);
+    border: 0; border-radius: 12px;
+    padding: 15px 26px; min-height: 52px;
+    cursor: pointer; text-decoration: none;
+    transition: background .15s ease;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn[disabled] { opacity: .6; cursor: wait; }
+  form .btn { width: 100%; }
+  .fine { font-size: 13px; color: var(--muted); margin: 0; }
+
+  .locked { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 10px; }
+  .locked li { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1.5px dashed var(--line); border-radius: 12px; color: var(--muted); }
+  .locked svg { width: 20px; height: 20px; flex: none; color: var(--accent); }
+
+  /* Étape 2 */
+  .video {
+    margin-top: 28px;
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--video-bg);
+    color: var(--video-fg);
+    display: grid;
+    place-items: center;
+    text-align: center;
+  }
+  .video video, .video iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
+  .video .ph { display: grid; gap: 10px; justify-items: center; padding: 20px; }
+  .video .ph svg { width: 56px; height: 56px; }
+  .video .ph span { font-size: 15px; opacity: .8; }
+  .cta { margin-top: 28px; display: flex; }
+  .cta .btn { width: 100%; }
+  .calendar { margin-top: 64px; scroll-margin-top: 24px; }
+  .calendar .frame {
+    margin-top: 20px;
+    min-height: 640px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    color: var(--muted);
+  }
+  .calendar iframe { width: 100%; height: 700px; border: 0; display: block; }
+  .calendar .ph { padding: 24px; max-width: 34ch; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .step.enter { animation: enter .35s ease both; }
+    @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  }
+  @media (min-width: 560px) {
+    form { padding: 32px 30px; }
+    .cta .btn { width: auto; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <!-- ÉTAPE 1 : formulaire -->
+  <section id="step1" class="step" aria-labelledby="t1">
+    <h1 id="t1">Accède à la présentation d’OLYA</h1>
+    <p class="lead">Renseigne tes informations pour débloquer l’accès. OLYA est ton assistant WhatsApp qui recontacte tes leads, les qualifie et pose tes RDV pendant que tu es en visite.</p>
+
+    <ul class="locked" aria-label="Ce que tu débloques">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>La vidéo de présentation d’OLYA</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>La réservation de ta démo</span></li>
+    </ul>
+
+    <form id="leadForm" novalidate>
+      <div class="field">
+        <label for="fullname">Nom complet</label>
+        <input id="fullname" name="fullname" type="text" autocomplete="name" placeholder="Camille Martin" required>
+        <p class="error" id="e-fullname" role="alert"></p>
+      </div>
+
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="camille@exemple.fr" required>
+        <p class="error" id="e-email" role="alert"></p>
+      </div>
+
+      <div class="field">
+        <label for="phone">Numéro de téléphone (WhatsApp)</label>
+        <div class="phone">
+          <select id="dial" name="dial" aria-label="Indicatif du pays">
+            <option value="33" selected>FR +33</option>
+            <option value="32">BE +32</option>
+            <option value="41">CH +41</option>
+            <option value="352">LU +352</option>
+            <option value="1">CA +1</option>
+            <option value="212">MA +212</option>
+            <option value="216">TN +216</option>
+            <option value="213">DZ +213</option>
+          </select>
+          <input id="phone" name="phone" type="tel" autocomplete="tel-national" inputmode="tel" placeholder="6 12 34 56 78" required>
+        </div>
+        <p class="error" id="e-phone" role="alert"></p>
+      </div>
+
+      <div class="field">
+        <label for="city">Ville</label>
+        <input id="city" name="city" type="text" list="cities" autocomplete="address-level2" placeholder="Lyon, Paris…" required>
+        <datalist id="cities">
+          <option value="Paris"></option>
+          <option value="Lyon"></option>
+          <option value="Marseille"></option>
+          <option value="Bordeaux"></option>
+          <option value="Lille"></option>
+          <option value="Toulouse"></option>
+          <option value="Nantes"></option>
+          <option value="Nice"></option>
+          <option value="Strasbourg"></option>
+          <option value="Montpellier"></option>
+          <option value="Rennes"></option>
+          <option value="Grenoble"></option>
+        </datalist>
+        <p class="error" id="e-city" role="alert"></p>
+      </div>
+
+      <div class="field">
+        <label class="consent" for="consent">
+          <input id="consent" name="consent" type="checkbox" required>
+          <span>J’accepte d’être contacté par WhatsApp et par e-mail au sujet de ma demande.</span>
+        </label>
+        <p class="error" id="e-consent" role="alert"></p>
+      </div>
+
+      <button class="btn" id="submitBtn" type="submit">Débloquer l’accès</button>
+      <p class="fine">Tes données ne servent qu’à te recontacter pour cette démo. Tu peux demander leur suppression à tout moment.</p>
+    </form>
+  </section>
+
+  <!-- ÉTAPE 2 : vidéo + CTA + calendrier -->
+  <section id="step2" class="step" aria-labelledby="t2" hidden>
+    <h1 id="t2">OLYA, ton assistant WhatsApp qui recontacte tes leads et pose tes RDV</h1>
+    <p class="lead" id="thanks"></p>
+
+    <div class="video" id="videoBox"></div>
+
+    <div class="cta">
+      <a class="btn" href="#calendar" id="ctaBtn">Réserve ta démo</a>
+    </div>
+
+    <section class="calendar" id="calendar" aria-labelledby="t3">
+      <h2 id="t3">Choisis un créneau pour ta démo d’OLYA</h2>
+      <div class="frame" id="calendarBox"></div>
+    </section>
+  </section>
+
+</main>
+
+<script>
+  /* ====== À REMPLIR ====== */
+  var CONFIG = {
+    WEBHOOK_URL:  "",   // URL du webhook n8n (ex : https://ton-n8n.com/webhook/lead)
+    VIDEO_URL:    "olya.mp4",   // vidéo OLYA (même dossier que cette page)
+    POSTER_URL:   "poster.jpg", // image affichée avant la lecture
+    CALENDAR_URL: "https://calendly.com/olivierokouta/30min"    // lien Calendly
+  };
+  /* ======================= */
+
+  var form = document.getElementById("leadForm");
+  var step1 = document.getElementById("step1");
+  var step2 = document.getElementById("step2");
+  var btn = document.getElementById("submitBtn");
+
+  function setError(id, msg) {
+    var el = document.getElementById("e-" + id);
+    var input = document.getElementById(id);
+    el.textContent = msg || "";
+    if (input) input.setAttribute("aria-invalid", msg ? "true" : "false");
+  }
+
+  /* Numéro au format international (E.164) : 06 12 34 56 78 + indicatif 33 -> +33612345678 */
+  function toE164(dial, raw) {
+    var digits = String(raw).replace(/\D/g, "");
+    if (digits.indexOf("00") === 0) return "+" + digits.slice(2);
+    if (digits.indexOf(dial) === 0 && digits.length > 9) return "+" + digits;
+    return "+" + dial + digits.replace(/^0+/, "");
+  }
+
+  function validate() {
+    var ok = true;
+    var name = form.fullname.value.trim();
+    var email = form.email.value.trim();
+    var phoneDigits = form.phone.value.replace(/\D/g, "");
+    var city = form.city.value.trim();
+
+    if (name.length < 3 || name.indexOf(" ") === -1) { setError("fullname", "Indique ton prénom et ton nom."); ok = false; } else setError("fullname");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { setError("email", "Cette adresse e-mail n’est pas valide."); ok = false; } else setError("email");
+    if (phoneDigits.length < 9) { setError("phone", "Ce numéro est trop court. Exemple : 6 12 34 56 78."); ok = false; } else setError("phone");
+    if (city.length < 2) { setError("city", "Indique ta ville."); ok = false; } else setError("city");
+    if (!form.consent.checked) { setError("consent", "Coche la case pour continuer."); ok = false; } else setError("consent");
+    return ok;
+  }
+
+  function buildEmbedUrl(base, lead) {
+    var sep = base.indexOf("?") === -1 ? "?" : "&";
+    return base + sep + "name=" + encodeURIComponent(lead.fullname) +
+      "&email=" + encodeURIComponent(lead.email) +
+      "&phone=" + encodeURIComponent(lead.phone);
+  }
+
+  function showStep2(lead) {
+    var first = lead.fullname.split(" ")[0];
+    document.getElementById("thanks").textContent = "Accès débloqué, " + first + ". Regarde la vidéo, puis réserve ta démo juste en dessous.";
+
+    var vbox = document.getElementById("videoBox");
+    if (CONFIG.VIDEO_URL) {
+      var v = document.createElement("video");
+      v.src = CONFIG.VIDEO_URL;
+      v.controls = true;
+      v.playsInline = true;
+      v.preload = "metadata";
+      if (CONFIG.POSTER_URL) v.poster = CONFIG.POSTER_URL;
+      vbox.appendChild(v);
+    } else {
+      vbox.innerHTML = '<div class="ph"><svg viewBox="0 0 56 56" fill="none" aria-hidden="true"><circle cx="28" cy="28" r="26" stroke="currentColor" stroke-width="2"/><path d="M23 19l15 9-15 9V19z" fill="currentColor"/></svg><span>La vidéo de présentation d’OLYA s’affichera ici</span></div>';
+    }
+
+    var cbox = document.getElementById("calendarBox");
+    if (CONFIG.CALENDAR_URL) {
+      var f = document.createElement("iframe");
+      f.src = buildEmbedUrl(CONFIG.CALENDAR_URL, lead);
+      f.title = "Calendrier de réservation";
+      f.loading = "lazy";
+      cbox.appendChild(f);
+    } else {
+      cbox.innerHTML = '<div class="ph">Ton calendrier Cal.com ou Calendly s’affichera ici, déjà prérempli avec le nom, l’e-mail et le téléphone.</div>';
+    }
+
+    step1.hidden = true;
+    step2.hidden = false;
+    step2.classList.add("enter");
+    window.scrollTo(0, 0);
+    document.getElementById("t2").setAttribute("tabindex", "-1");
+    document.getElementById("t2").focus({ preventScroll: true });
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!validate()) {
+      var firstBad = form.querySelector('[aria-invalid="true"]');
+      if (firstBad) firstBad.focus();
+      return;
+    }
+    var lead = {
+      fullname: form.fullname.value.trim(),
+      email: form.email.value.trim(),
+      phone: toE164(form.dial.value, form.phone.value),
+      city: form.city.value.trim(),
+      whatsapp_consent: true,
+      source: "meta_ads_carousel",
+      submitted_at: new Date().toISOString()
+    };
+
+    btn.disabled = true;
+    btn.textContent = "Déblocage en cours…";
+
+    var send = Promise.resolve();
+    if (CONFIG.WEBHOOK_URL) {
+      send = fetch(CONFIG.WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(lead)
+      }).catch(function () { /* on n’empêche jamais le prospect d’avancer */ });
+    }
+    send.then(function () { showStep2(lead); });
+  });
+</script>
+</body>
+</html>
